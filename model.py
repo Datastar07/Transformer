@@ -171,7 +171,7 @@ class DecoderBlock(nn.Module):
         self.self_attention_block = self_attention_block
         self.cross_attention_block = cross_attention_block
         self.feed_forward_network = feed_forward_network
-        self.residual_connection = nn.Module([ResidualConnection(dropout) for _ in range(3)])
+        self.residual_connection = nn.ModuleList([ResidualConnection(dropout) for _ in range(3)])
 
     def forward(self, x, encoder_output, src_mask, tgt_mask):
         x= self.residual_connection[0](x, lambda x: self.self_attention_block(x,x,x,tgt_mask))
@@ -201,4 +201,31 @@ class ProectionLayer(nn.Module):
 
     def forward(self, x):
         return torch.log_softmax(self.proj(x), dim = -1)
+
+
+class Transformer(nn.Module):
+
+    def __init__(self, encoder: Encoder, decoder: Decoder, src_emb: InputEmbeddings, tgt_emb: InputEmbeddings, src_pos: PositionalEmbeddings, tgt_pos: PositionalEmbeddings, projection_layer: ProectionLayer) -> None:
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.src_emb = src_emb
+        self.tgt_emb = tgt_emb
+        self.src_pos = src_pos
+        self.tgt_pos = tgt_pos
+        self.projection_layer = projection_layer
+
+    def encode(self, src, src_msk):
+        src = self.src_emb(src)
+        src = self.src_pos(src)
+
+        return self.encoder(src, src_msk)
     
+    def decode(self, encoder_output, src_mask, tgt, tgt_mask):
+        tgt = self.tgt_emb(tgt)
+        tgt = self.tgt_pos(tgt)
+
+        return self.decoder(tgt, encoder_output, src_mask, tgt_mask)
+    
+    def project(self, x):
+        return self.projection_layer(x)
